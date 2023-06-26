@@ -1,0 +1,9 @@
+{
+    "statement": {
+        "type": "String",
+        "required": true,
+        "minLength": 1,
+        "title": "Statement",
+        "description": "statement to generate searches from"
+    }
+}

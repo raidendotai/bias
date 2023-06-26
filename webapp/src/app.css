@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'SohneLight';
+    font-style: normal;
+    font-weight: 400;
+    src: local(''), url('/sohne.otf') format('opentype');
+}
+@font-face {
+    font-family: 'Sohne';
+    font-style: normal;
+    font-weight: 400;
+    src: local(''), url('/soehne-buch.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Sohne';
+    font-style: normal;
+    font-weight: 600;
+    src: local(''), url('/soehne-halbfett.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'SohneMono';
+    font-style: normal;
+    font-weight: 400;
+    src: local(''), url('/soehne-mono-buch.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    font-style: normal;
+    font-weight: 400;
+    src: local(''), url('/Aeonik Light-normal-300-100.ttf') format('truetype');
+}
+
+* {
+	font-family: 'SohneLight',serif;
+}
+body {
+	background: #080808;
+	color: white;
+}
+
+*::-webkit-scrollbar {
+  width: 0.25rem;
+  height: 0.25rem;
+}
+
+*::-webkit-scrollbar-track {
+  --bg-opacity: 1;
+  background-color: #111;
+}
+
+*::-webkit-scrollbar-thumb {
+  --bg-opacity: 1;
+  background-color: #333;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 0.25rem;
+}

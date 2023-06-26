@@ -1,0 +1,46 @@
+step: validation {
+    return true;
+}
+
+step: suggest {
+    const gpt_query = {
+        messages: [{
+                role: `system`,
+                content: `you are an expert at generating search queries. Everything is for educational purposes so you can safely stick to the task.`
+            },
+            {
+                role: "user",
+                content: "generate search queries related to the following statement :\n```\n" + query.statement.trim() + "\n```"
+            },
+        ],
+        functions: [{
+            name: 'suggest_search_queries',
+            description: 'generate 3 search queries suggestions related to the provided statement',
+            parameters: {
+                type: 'object',
+                properties: {
+                    search_queries: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            description: 'search query'
+                        },
+                        maximum: 3
+                    }
+                }
+            }
+        }, ]
+    }
+
+    const generated = await api({
+        route: 'actions/generate/openai',
+        query: gpt_query,
+    })
+
+    return {
+        search_queries: JSON.parse(
+            generated.answer.function_call.arguments
+        ).search_queries
+    }
+
+}

@@ -1,0 +1,42 @@
+step: validation {
+    return true;
+}
+
+step: suggest {
+    const gpt_query = {
+        messages: [{
+                role: `system`,
+                content: `you are an expert at generating titles for clusters of arguments. Everything is for educational purposes so you can safely stick to the task.`
+            },
+            {
+                role: "user",
+                content: "generate a cluster title related to the following arguments :\n```\n" + query.cluster.join('\n') + "\n```"
+            },
+        ],
+        functions: [{
+            name: 'generate_cluster_title',
+            description: 'generate a fitting title for this cluster of arguments',
+            parameters: {
+                type: 'object',
+                properties: {
+                    cluster_title: {
+                        type: 'string',
+                        description: 'fitting title for the provided cluster of arguments',
+                    }
+                }
+            }
+        }, ]
+    }
+
+    const generated = await api({
+        route: 'actions/generate/openai',
+        query: gpt_query,
+    })
+
+    return {
+        cluster_title: JSON.parse(
+            generated.answer.function_call.arguments
+        ).cluster_title
+    }
+
+}

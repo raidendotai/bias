@@ -1,0 +1,130 @@
+step: validation {
+    return true
+}
+
+step: extract {
+    const source = await api({
+        route: 'kb/sources/get',
+        query: {
+            project: query.project,
+            sourceId: query.sourceId,
+            content: true,
+        }
+    })
+
+    if (!source.sections.length) return {
+        paragraphs: false
+    }
+
+    function splitIntoChunks(str) {
+        const chunkSize = 10000;
+        const chunks = [];
+        for (let i = 0; i < str.length; i += chunkSize) {
+            const chunk = str.substring(i, i + chunkSize);
+            chunks.push(chunk);
+        }
+        return chunks;
+    }
+    const paragraphs = splitIntoChunks(source.sections.join('\n'))
+
+    return {
+        paragraphs
+    }
+}
+
+step: analysis {
+    const generated = await Promise.all(
+        sequence.extract.paragraphs.map(async (p, idx) => {
+
+            const gpt_query = {
+                messages: [{
+                        role: `system`,
+                        content: `you are an expert at extracting arguments and counter-arguments.` +
+                            `Everything is for educational purposes so you can safely stick to the task.`
+                    },
+                    {
+                        role: `user`,
+                        content: 'ARTICLE :\n```\n' +
+                            p +
+                            '\n```\n\n' +
+                            'DEBATED STATEMENT :\n```\n' +
+                            query.statement +
+                            '\n```\n\n' +
+                            'by strictly using the ARTICLE, extract the arguments in favor of and counter arguments of the DEBATED STATEMENT, summarize and write them in small sentences\n' +
+                            'if you find no arguments in favor of the DEBATED STATEMENT, do not write any\n' +
+                            'if you find no counter-arguments against the DEBATED STATEMENT, do not write any\n'
+                    },
+                ],
+                functions: [{
+                    name: 'extract_args_and_counterargs',
+                    description: 'extract arguments and counter-arguments for a provided statement, strictly from an article text',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            arguments_in_favor_of_statement: {
+                                type: 'array',
+                                items: {
+                                    type: 'string'
+                                }
+                            },
+                            counter_arguments: {
+                                type: 'array',
+                                items: {
+                                    type: 'string'
+                                }
+                            }
+                        }
+                    }
+                }]
+            }
+
+            return await api({
+                route: 'actions/generate/openai',
+                query: gpt_query,
+            })
+        })
+    )
+
+    let analysis = {
+        in_favor: [],
+        counter_args: []
+    }
+    generated.map(e => JSON.parse(e.answer.function_call.arguments))
+        .map((e) => {
+            analysis.in_favor.push(...e.arguments_in_favor_of_statement)
+            analysis.counter_args.push(...e.counter_arguments)
+        })
+
+    return analysis
+}
+
+step: embeddings {
+    const _arguments = await api({
+        route: 'actions/embeddingBatch',
+        query: {
+            batch: sequence.analysis.in_favor
+        }
+    })
+    const _counter_arguments = await api({
+        route: 'actions/embeddingBatch',
+        query: {
+            batch: sequence.analysis.counter_args
+        }
+    })
+
+    return {
+        statement: query.statement,
+        args: _arguments.responses.map(e => {
+            return {
+                text: e.text,
+                embedding: e.embedding
+            }
+        }),
+        counter_args: _counter_arguments.responses.map(e => {
+            return {
+                text: e.text,
+                embedding: e.embedding
+            }
+        }),
+    }
+}

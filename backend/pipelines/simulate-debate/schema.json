@@ -1,0 +1,11 @@
+{
+   "statement":"String",
+   "context":"String",
+   "stack":[
+      {
+         "in_favor":"Boolean",
+         "text":"String"
+      }
+   ],
+   "position":"Boolean"
+}

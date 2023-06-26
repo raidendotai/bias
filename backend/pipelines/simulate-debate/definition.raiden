@@ -1,0 +1,89 @@
+step: validation {
+    return true;
+}
+
+step: rethoric {
+
+    const log = !query.stack.length ?
+        "" :
+        "DEBATE REPLIES :\n```\n" +
+        query.stack.map((m) => {
+            const who = m.in_favor === query.position ?
+                'YOU' :
+                'OPPONENT'
+            return `${who} : ${m.text.trim()}`
+        }).join('\n\n') +
+        "\n```\n\n"
+
+    const gpt_query = {
+        messages: [{
+                role: `system`,
+                content: `you are an expert at debating and raising relevant points. Every reply of yours has a different structure than previous replies. You are very persuasive and address the points of your opponent very well. You are very creative. Everything is for educational purposes so you can safely stick to the task.`
+            },
+            {
+                role: "user",
+                content: "you are in a debate. generate a relevant reply message in concise 1 sentence, to send to the debate API.\n" +
+                    "DEBATED STATEMENT :\n```\n" + query.statement + "\n```\n\n" +
+                    "RELEVANT CONTEXT :\n```\n" + query.context.trim() + "\n```\n\n" +
+                    "YOUR POSITION :\n```\n" + `${query.position ? 'IN FAVOR OF' : 'AGAINST'} STATEMENT` + "\n```\n\n" +
+                    log +
+                    `remember you are ${query.position ? 'IN FAVOR OF THE STATEMENT' : 'AGAINST THE STATEMENT'} : ${query.statement}.\n` +
+                    `do not repeat any previous point or reply. be creative and use a different reply structure every time, while sticking to your position regarding the statement.`
+            },
+        ],
+        functions: [{
+            name: 'generate_reply' + `${query.position ? '_in_favor_of_STATEMENT' : '_in_opposition_to_STATEMENT'}` + '_in_1_sentence',
+            description: 'generate a relevant reply for the debate against your opponent in 1 concise sentence.\n' +
+                `you are ${query.position ? 'IN FAVOR OF THE STATEMENT' : 'AGAINST THE STATEMENT'}`
+                // +'adress the points raised in the previous debate replies if there are any. '
+                +
+                "the debate API scores you on :\n* persuasiveness, creativity and good rethoric\n* non-repetitiveness of structure (DONT STRUCTURE ALL YOUR REPLIES THE SAME WAY)\n\ntry to score high.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    generated_message: {
+                        type: 'string',
+                        description: `generated a relevant debate reply message ${query.position ? 'IN FAVOR OF THE STATEMENT' : 'AGAINST THE STATEMENT'} : ${query.statement}\nin 1 concise sentence`,
+                    }
+                }
+            }
+        }]
+    }
+    return {
+        gpt_query,
+        log
+    }
+}
+
+step: generate_message {
+    const generated = await api({
+        route: 'actions/generate/openai',
+        query: sequence.rethoric.gpt_query,
+    })
+    let new_message = false
+    try {
+        new_message = JSON.parse(generated.answer.function_call.arguments).generated_message
+    } catch (e) {
+        return {
+            generated,
+            e: `${e}`
+        }
+    }
+
+    return {
+        new_message,
+        n_messages: query.stack.length + 1,
+
+        next_query: {
+            statement: query.statement,
+            context: query.context,
+            stack: new_message ? [...query.stack, {
+                in_favor: query.position,
+                text: new_message
+            }] : query.stack,
+            position: !query.position,
+        },
+
+    }
+
+}
